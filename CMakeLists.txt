@@ -5,18 +5,14 @@ project(Hydrobox VERSION 1.0)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-include(FetchContent)
-FetchContent_Declare(
-    glfw
-    GIT_REPOSITORY https://github.com/glfw/glfw.git
-    GIT_TAG 3.4 # update as needed
-)
-FetchContent_MakeAvailable(glfw)
+add_subdirectory("lib/boxer")
+add_subdirectory("lib/glfw")
 
 find_package(OpenGL REQUIRED)
 
 add_executable(${PROJECT_NAME} main.cpp)
-target_link_libraries(${PROJECT_NAME} PRIVATE glfw OpenGL::GL)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE glfw OpenGL::GL Boxer)
 
 if(WIN32)
     target_compile_definitions(${PROJECT_NAME} PRIVATE -DPLATFORM_WINDOWS)

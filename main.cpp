@@ -1,5 +1,7 @@
 #include <iostream>
+
 #include <GLFW/glfw3.h>
+#include <boxer/boxer.h>
 
 GLFWwindow* window;
 
@@ -17,12 +19,13 @@ public:
             glfwTerminate();
             throw std::exception();
         }
-
         glfwMakeContextCurrent(window);
+
+        glfwSetWindowOpacity(window, 0.2);
 
         while (!glfwWindowShouldClose(window)) {
             glClear(GL_COLOR_BUFFER_BIT);
-            glClearColor(1.0f, 0.0f, 0.0f, 1.f);
+            glClearColor(0.0f, 0.0f, 0.0f, 0.f);
             glfwSwapBuffers(window);
             glfwPollEvents();
         }
@@ -34,7 +37,7 @@ int main() {
     try {
         Hydrobox app;
     } catch (std::exception e) {
-        return -1;
+        boxer::show("error", "error");
     }
     return 0;
 }
