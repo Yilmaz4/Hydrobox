@@ -8,9 +8,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 add_subdirectory("lib/boxer")
 add_subdirectory("lib/glfw")
 
+include_directories(SYSTEM "lib/glad/include")
+
 find_package(OpenGL REQUIRED)
 
-add_executable(${PROJECT_NAME} main.cpp)
+add_executable(${PROJECT_NAME} main.cpp lib/glad/src/glad.c)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE glfw OpenGL::GL Boxer)
 
