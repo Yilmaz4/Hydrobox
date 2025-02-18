@@ -31,3 +31,9 @@ ninja
 ```
 
 You can then find the executable in the `bin` directory
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+All third-party libraries used in this project are distributed under their respective licenses, which can be found in the lib directory within each library's folder.
