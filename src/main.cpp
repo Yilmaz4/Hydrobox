@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <boxer/boxer.h>
 
@@ -12,16 +13,17 @@ public:
     Hydrobox() {
         GLFWwindow* window;
 
-        if (!glfwInit()) throw std::exception();
+        if (!glfwInit()) throw std::runtime_error("Failed to initialize GLFW.");
 
         window = glfwCreateWindow(640, 480, "GLFW Demo", NULL, NULL);
         if (!window) {
-            glfwTerminate();
-            throw std::exception();
+            throw std::runtime_error("Failed to create GLFW window.");
         }
         glfwMakeContextCurrent(window);
 
-        glfwSetWindowOpacity(window, 0.2);
+        if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+            throw std::runtime_error("Failed to initialize GLAD.");
+        }
 
         while (!glfwWindowShouldClose(window)) {
             glClear(GL_COLOR_BUFFER_BIT);
@@ -36,8 +38,9 @@ public:
 int main() {
     try {
         Hydrobox app;
-    } catch (std::exception e) {
-        boxer::show("error", "error");
+    } catch (const std::exception& e) {
+        glfwTerminate();
+        boxer::show(e.what(), "Runtime error");
     }
     return 0;
 }
