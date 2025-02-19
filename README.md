@@ -20,7 +20,7 @@ git clone --recurse-submodules https://github.com/Yilmaz4/Hydrobox.git
 
 Generate the build files with CMake and build
 ```
-cmake -S . -B build
+cmake -S . -B build -G Ninja
 cmake --build build
 ```
 
