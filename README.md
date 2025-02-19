@@ -18,16 +18,10 @@ Clone the repository with `--recurse-submodules`
 git clone --recurse-submodules https://github.com/Yilmaz4/Hydrobox.git
 ```
 
-Create the `build` and `bin` directories, then go into the `build` directory
+Generate the build files with CMake and build
 ```
-mkdir -p bin build
-cd build
-```
-
-Generate the build files with CMake, then run Ninja
-```
-cmake ..
-ninja
+cmake -S . -B build
+cmake --build build
 ```
 
 You can then find the executable in the `bin` directory
