@@ -1,45 +1,49 @@
 #include <iostream>
+#include <thread>
 
 #include <glad/glad.h>
-#include <GLFW/glfw3.h>
 #include <boxer/boxer.h>
 
-GLFWwindow* window;
+#define SFML_NO_GLU
+#include <SFML/Window.hpp>
+#include <SFML/OpenGL.hpp>
 
-class Hydrobox {
-public:
-    GLFWwindow* window;
+#include <SFML/System/Clock.hpp>
 
-    Hydrobox() {
-        GLFWwindow* window;
+void renderThread(sf::Window* window) {
+    if (!window->setActive(true))
+        throw std::runtime_error("Failed to activate SFML window");
 
-        if (!glfwInit()) throw std::runtime_error("Failed to initialize GLFW.");
-
-        window = glfwCreateWindow(640, 480, "GLFW Demo", NULL, NULL);
-        if (!window) {
-            throw std::runtime_error("Failed to create GLFW window.");
-        }
-        glfwMakeContextCurrent(window);
-
-        if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-            throw std::runtime_error("Failed to initialize GLAD.");
-        }
-
-        while (!glfwWindowShouldClose(window)) {
-            glClear(GL_COLOR_BUFFER_BIT);
-            glClearColor(0.0f, 0.0f, 0.0f, 0.f);
-            glfwSwapBuffers(window);
-            glfwPollEvents();
-        }
-        glfwTerminate();
+    sf::Clock clock;
+    clock.start();
+    while (window->isOpen()) {
+        float seconds = clock.getElapsedTime().asSeconds();
+        glClearColor(seconds - (int)seconds, 0.f, 0.f, 1.f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        window->display();
     }
-};
+}
 
 int main() {
     try {
-        Hydrobox app;
+        sf::Window window(sf::VideoMode({800, 600}), "OpenGL");
+
+        if (!gladLoadGLLoader((GLADloadproc)sf::Context::getFunction))
+            throw std::runtime_error("Failed to initialize GLAD");
+            
+        window.setVerticalSyncEnabled(true);
+        if (!window.setActive(false))
+            throw std::runtime_error("Failed to activate SFML window");
+
+        std::thread thread(&renderThread, &window);
+
+        while (window.isOpen()) {
+            while (const std::optional event = window.pollEvent()) {
+                if (event->is<sf::Event::Closed>()) window.close();
+            }
+        }
+        thread.join();
     } catch (const std::exception& e) {
-        glfwTerminate();
         boxer::show(e.what(), "Runtime error");
     }
     return 0;
