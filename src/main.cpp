@@ -7,7 +7,6 @@
 #define SFML_NO_GLU
 #include <SFML/Window.hpp>
 #include <SFML/OpenGL.hpp>
-
 #include <SFML/System/Clock.hpp>
 
 void renderThread(sf::Window* window) {
@@ -16,7 +15,7 @@ void renderThread(sf::Window* window) {
 
     sf::Clock clock;
     clock.start();
-    while (window->isOpen()) {
+    while (window->isOpen()) {   
         float seconds = clock.getElapsedTime().asSeconds();
         glClearColor(seconds - (int)seconds, 0.f, 0.f, 1.f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -26,7 +25,7 @@ void renderThread(sf::Window* window) {
 
 int main() {
     try {
-        sf::Window window(sf::VideoMode({800, 600}), "OpenGL");
+        sf::Window window{sf::VideoMode({800, 600}), "Hydrobox", sf::Style::Default, sf::State::Windowed, sf::ContextSettings(24, 8, 4, 4, 6)};
 
         if (!gladLoadGLLoader((GLADloadproc)sf::Context::getFunction))
             throw std::runtime_error("Failed to initialize GLAD");
