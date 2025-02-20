@@ -13,9 +13,10 @@ I'm writing these down so I don't forget later on, I'm not yet sure if there are
 - Ninja
 - C++ compiler (GCC, Clang, MSVC, etc.)
 
-Clone the repository with `--recurse-submodules`
+Clone the repository with `--recurse-submodules`, then go into the directory
 ```
 git clone --recurse-submodules https://github.com/Yilmaz4/Hydrobox.git
+cd Hydrobox
 ```
 
 Generate the build files with CMake and build
