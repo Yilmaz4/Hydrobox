@@ -4,6 +4,7 @@
 
 #include <glad/glad.h>
 #include <boxer/boxer.h>
+#include <bmp_read.hpp>
 
 #define SFML_NO_GLU
 #include <SFML/Window.hpp>
@@ -36,11 +37,7 @@ void renderThread(sf::RenderWindow& window) {
         prevTime = elapsed;
         ImGui::SFML::Update(window, dt);
 
-        //ImGui::PushFont(imfont);
-
         ImGui::ShowDemoWindow();
-
-        //ImGui::PopFont();
 
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui::SFML::Render();
@@ -50,8 +47,12 @@ void renderThread(sf::RenderWindow& window) {
 
 int main() {
     try {
-        sf::RenderWindow window{sf::VideoMode({800, 600}), "Hydrobox", sf::Style::Default, sf::State::Windowed, sf::ContextSettings(24, 8, 4, 4, 6)};
+        sf::RenderWindow window{sf::VideoMode({ 800, 600 }), "Hydrobox", sf::Style::Default, sf::State::Windowed, sf::ContextSettings(24, 8, 4, 4, 6)};
         window.setVerticalSyncEnabled(true);
+        auto icon = b::embed<"assets/icon.bmp">();
+        uint8_t pixels[48 * 48 * 4];
+        parseBMP(reinterpret_cast<const uint8_t*>(icon.data()), icon.size(), pixels);
+        window.setIcon({ 48, 48 }, pixels);
 
         if (!ImGui::SFML::Init(window, false))
             throw std::runtime_error("Failed to initialize ImGui");
@@ -59,7 +60,6 @@ int main() {
             throw std::runtime_error("Failed to initialize GLAD");
         if (!window.setActive(false))
             throw std::runtime_error("Failed to activate SFML window");
-
         
         IMGUI_CHECKVERSION();
         ImGuiIO& io = ImGui::GetIO(); (void)io;

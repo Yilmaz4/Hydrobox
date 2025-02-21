@@ -27,6 +27,7 @@ find_package(OpenGL REQUIRED)
 add_executable(${PROJECT_NAME} src/main.cpp lib/glad/src/glad.c)
 
 b_embed(${PROJECT_NAME} assets/consola.ttf)
+b_embed(${PROJECT_NAME} assets/icon.bmp)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE SFML::Graphics OpenGL::GL Boxer ImGui-SFML::ImGui-SFML)
 
