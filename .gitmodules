@@ -10,3 +10,6 @@
 [submodule "lib/imgui-sfml"]
 	path = lib/imgui-sfml
 	url = https://github.com/SFML/imgui-sfml
+[submodule "lib/embed"]
+	path = lib/embed
+	url = https://github.com/batterycenter/embed
