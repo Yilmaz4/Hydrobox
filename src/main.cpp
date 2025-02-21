@@ -14,6 +14,11 @@
 
 #include <imgui-SFML.h>
 #include <imgui.h>
+#include <imgui_theme.hpp>
+
+#include "battery/embed.hpp"
+
+ImFont* imfont;
 
 void renderThread(sf::RenderWindow& window) {
     if (!window.setActive(true))
@@ -29,10 +34,13 @@ void renderThread(sf::RenderWindow& window) {
         sf::Time elapsed = clock.getElapsedTime();
         sf::Time dt = elapsed - prevTime;
         prevTime = elapsed;
-
         ImGui::SFML::Update(window, dt);
 
+        //ImGui::PushFont(imfont);
+
         ImGui::ShowDemoWindow();
+
+        //ImGui::PopFont();
 
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui::SFML::Render();
@@ -45,12 +53,23 @@ int main() {
         sf::RenderWindow window{sf::VideoMode({800, 600}), "Hydrobox", sf::Style::Default, sf::State::Windowed, sf::ContextSettings(24, 8, 4, 4, 6)};
         window.setVerticalSyncEnabled(true);
 
-        if (!ImGui::SFML::Init(window, true))
+        if (!ImGui::SFML::Init(window, false))
             throw std::runtime_error("Failed to initialize ImGui");
         if (!gladLoadGLLoader((GLADloadproc)sf::Context::getFunction))
             throw std::runtime_error("Failed to initialize GLAD");
         if (!window.setActive(false))
             throw std::runtime_error("Failed to activate SFML window");
+
+        
+        IMGUI_CHECKVERSION();
+        ImGuiIO& io = ImGui::GetIO(); (void)io;
+        auto font = b::embed<"assets/consola.ttf">();
+        io.Fonts->Clear();
+        imfont = io.Fonts->AddFontFromMemoryTTF((void*)font.data(), font.size(), 11.f, nullptr);
+        IM_ASSERT(imfont != NULL);
+        if (!ImGui::SFML::UpdateFontTexture())
+            throw std::runtime_error("Failed to update font texture in ImGui");
+        ImGui::LoadTheme();
 
         std::thread thread(&renderThread, std::ref(window));
 
