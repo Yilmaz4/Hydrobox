@@ -1,5 +1,6 @@
 #include <iostream>
 #include <thread>
+#include <chrono>
 
 #include <glad/glad.h>
 #include <boxer/boxer.h>
@@ -7,38 +8,56 @@
 #define SFML_NO_GLU
 #include <SFML/Window.hpp>
 #include <SFML/OpenGL.hpp>
+#include <SFML/Window/Event.hpp>
 #include <SFML/System/Clock.hpp>
+#include <SFML/Graphics/RenderWindow.hpp>
 
-void renderThread(sf::Window* window) {
-    if (!window->setActive(true))
+#include <imgui-SFML.h>
+#include <imgui.h>
+
+void renderThread(sf::RenderWindow& window) {
+    if (!window.setActive(true))
         throw std::runtime_error("Failed to activate SFML window");
 
     sf::Clock clock;
     clock.start();
-    while (window->isOpen()) {   
-        float seconds = clock.getElapsedTime().asSeconds();
-        glClearColor(seconds - (int)seconds, 0.f, 0.f, 1.f);
+
+    glClearColor(0.f, 0.f, 0.f, 1.f);
+    sf::Time prevTime;
+
+    while (window.isOpen()) {
+        sf::Time elapsed = clock.getElapsedTime();
+        sf::Time dt = elapsed - prevTime;
+        prevTime = elapsed;
+
+        ImGui::SFML::Update(window, dt);
+
+        ImGui::ShowDemoWindow();
+
         glClear(GL_COLOR_BUFFER_BIT);
-        window->display();
+        ImGui::SFML::Render();
+        window.display();
     }
 }
 
 int main() {
     try {
-        sf::Window window{sf::VideoMode({800, 600}), "Hydrobox", sf::Style::Default, sf::State::Windowed, sf::ContextSettings(24, 8, 4, 4, 6)};
+        sf::RenderWindow window{sf::VideoMode({800, 600}), "Hydrobox", sf::Style::Default, sf::State::Windowed, sf::ContextSettings(24, 8, 4, 4, 6)};
+        window.setVerticalSyncEnabled(true);
 
+        if (!ImGui::SFML::Init(window, true))
+            throw std::runtime_error("Failed to initialize ImGui");
         if (!gladLoadGLLoader((GLADloadproc)sf::Context::getFunction))
             throw std::runtime_error("Failed to initialize GLAD");
-            
-        window.setVerticalSyncEnabled(true);
         if (!window.setActive(false))
             throw std::runtime_error("Failed to activate SFML window");
 
-        std::thread thread(&renderThread, &window);
+        std::thread thread(&renderThread, std::ref(window));
 
         while (window.isOpen()) {
-            while (const std::optional event = window.pollEvent()) {
+            while (const auto event = window.pollEvent()) {
                 if (event->is<sf::Event::Closed>()) window.close();
+                ImGui::SFML::ProcessEvent(window, event.value());
             }
         }
         thread.join();
