@@ -5,9 +5,9 @@
 #include <cstring>
 #include <iostream>
 
-#pragma pack(push, 1) // Ensure correct struct alignment
+#pragma pack(push, 1)
 struct BMPHeader {
-    uint16_t fileType;  // 'BM'
+    uint16_t fileType;
     uint32_t fileSize;
     uint16_t reserved1;
     uint16_t reserved2;
@@ -27,44 +27,36 @@ struct DIBHeader {
     uint32_t colorsUsed;
     uint32_t colorsImportant;
 };
-#pragma pack(pop) // Restore default alignment
+#pragma pack(pop)
 
+// thanks ChatGPT
 void parseBMP(const uint8_t* bmpData, size_t dataSize, uint8_t (&output)[48 * 48 * 4]) {
-    if (!bmpData || dataSize < 54) // Minimum BMP header size
+    if (!bmpData || dataSize < 54)
         throw std::runtime_error("Invalid BMP data");
 
-    // Read BMP Header
     BMPHeader bmpHeader;
     std::memcpy(&bmpHeader, bmpData, sizeof(BMPHeader));
 
-    if (bmpHeader.fileType != 0x4D42) // 'BM' in little endian
+    if (bmpHeader.fileType != 0x4D42)
         throw std::runtime_error("Not a BMP file");
 
-    // Read DIB Header (manually read fields to avoid misalignment)
     DIBHeader dibHeader;
     std::memcpy(&dibHeader, bmpData + sizeof(BMPHeader), sizeof(DIBHeader));
 
-    // Debugging output
-    std::cout << "Header Size: " << dibHeader.headerSize << std::endl;
-    std::cout << "Width: " << dibHeader.width << ", Height: " << dibHeader.height << std::endl;
-
-    // Validate dimensions
     if (dibHeader.width != 48 || std::abs(dibHeader.height) != 48)
         throw std::runtime_error("Unsupported BMP dimensions (must be 64x64)");
 
-    // Read pixel data
     const uint8_t* pixelData = bmpData + bmpHeader.pixelDataOffset;
     int bytesPerPixel = dibHeader.bitCount / 8;
 
     if (dibHeader.bitCount != 24 && dibHeader.bitCount != 32)
         throw std::runtime_error("Unsupported BMP bit count (only 24 or 32-bit allowed)");
 
-    // Each row in a BMP is padded to a multiple of 4 bytes
     int rowStride = ((dibHeader.width * dibHeader.bitCount + 31) / 32) * 4;
-    bool isBottomUp = dibHeader.height > 0; // If height is positive, the image is bottom-up
+    bool isBottomUp = dibHeader.height > 0;
 
     for (int y = 0; y < 48; ++y) {
-        int srcY = isBottomUp ? (47 - y) : y; // Flip if bottom-up
+        int srcY = isBottomUp ? (47 - y) : y;
         const uint8_t* srcRow = pixelData + srcY * rowStride;
         uint8_t* dstRow = &output[y * 48 * 4];
 
