@@ -15,10 +15,10 @@
 #include <SFML/System/Clock.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
 
-#include <imgui-SFML.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imgui_theme.hpp>
+#include <imgui-SFML.h>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
@@ -28,9 +28,14 @@
 #include <glm/gtx/vector_angle.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+struct Particle {
+    glm::vec2 pos;
+    glm::vec2 vel;
+};
+
 GLuint ssbo;
-int num_particles = 100;
-float* particles = new float[num_particles * 2];
+int num_particles = 50;
+std::vector<Particle> particles;
 
 void GLAPIENTRY glMessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {
     if (type != GL_DEBUG_TYPE_ERROR) return;
@@ -54,11 +59,13 @@ void renderThread(sf::RenderWindow& window) {
     std::uniform_real_distribution<float> dist(-1.f, 1.f);
 
     for (int i = 0; i < num_particles; i++) {
-        particles[i * 2] = dist(e2);
-        particles[i * 2 + 1] = dist(e2);
+        Particle p;
+        p.pos = { dist(e2), dist(e2) };
+        p.vel = { 0.f, 0.f };
+        particles.push_back(p);
     }
 
-    glBufferData(GL_SHADER_STORAGE_BUFFER, num_particles * 2 * sizeof(float), particles, GL_DYNAMIC_DRAW);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, num_particles * sizeof(Particle), particles.data(), GL_DYNAMIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo);
 
     b::EmbedInternal::EmbeddedFile embed;
@@ -69,6 +76,7 @@ void renderThread(sf::RenderWindow& window) {
         int success;
         char infoLog[1024];
         glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+
         if (!success) {
             glGetShaderInfoLog(shader, 1024, NULL, infoLog);
             std::cout << infoLog << std::endl;
@@ -111,17 +119,28 @@ void renderThread(sf::RenderWindow& window) {
     sf::Time prevTime;
 
     glClearColor(0.f, 0.f, 0.f, 1.f);
+    glPointSize(4.f);
 
     while (window.isOpen()) {
         sf::Time elapsed = clock.getElapsedTime();
-        sf::Time dt = elapsed - prevTime;
+        sf::Time sfdt = elapsed - prevTime;
+        float dt = sfdt.asSeconds();
         prevTime = elapsed;
-        ImGui::SFML::Update(window, dt);
+        ImGui::SFML::Update(window, sfdt);
+
+        for (Particle& p : particles) {
+            p.vel.y += -9.81f * dt;
+            p.pos += p.vel * dt;
+            
+            if (p.pos.y < -1.f) {
+                p.pos.y = -1.f;
+                p.vel.y *= -0.8f;
+            }
+        }
+        glBufferData(GL_SHADER_STORAGE_BUFFER, num_particles * sizeof(Particle), particles.data(), GL_DYNAMIC_DRAW);
 
         glClear(GL_COLOR_BUFFER_BIT);
-        
         glDrawArrays(GL_POINTS, 0, num_particles);
-
         ImGui::SFML::Render();
         window.display();
     }
