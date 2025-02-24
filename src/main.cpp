@@ -28,13 +28,15 @@
 #include <glm/gtx/vector_angle.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+using namespace glm;
+
 struct Particle {
     glm::vec2 pos;
     glm::vec2 vel;
 };
 
 GLuint ssbo;
-int num_particles = 50;
+int num_particles = 1;
 std::vector<Particle> particles;
 
 void GLAPIENTRY glMessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {
@@ -48,25 +50,12 @@ void renderThread(sf::RenderWindow& window) {
     if (!gladLoadGLLoader((GLADloadproc)sf::Context::getFunction))
         throw std::runtime_error("Failed to initialize GLAD");
 
+    sf::Vector2i windowPos = window.getPosition();
+    sf::Vector2u windowSize = window.getSize();
+    sf::Vector2u screenSize = sf::VideoMode::getDesktopMode().size;
+
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glDebugMessageCallback(glMessageCallback, nullptr);
-
-    glGenBuffers(1, &ssbo);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-    
-    std::random_device rd;
-    std::mt19937 e2(rd());
-    std::uniform_real_distribution<float> dist(-1.f, 1.f);
-
-    for (int i = 0; i < num_particles; i++) {
-        Particle p;
-        p.pos = { dist(e2), dist(e2) };
-        p.vel = { 0.f, 0.f };
-        particles.push_back(p);
-    }
-
-    glBufferData(GL_SHADER_STORAGE_BUFFER, num_particles * sizeof(Particle), particles.data(), GL_DYNAMIC_DRAW);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo);
 
     b::EmbedInternal::EmbeddedFile embed;
     const char* content;
@@ -79,8 +68,8 @@ void renderThread(sf::RenderWindow& window) {
 
         if (!success) {
             glGetShaderInfoLog(shader, 1024, NULL, infoLog);
-            std::cout << infoLog << std::endl;
-            throw std::runtime_error(infoLog);
+            boxer::show(infoLog, "Fatal shader compilation error", boxer::Style::Error);
+            throw;
         }
     };
 
@@ -119,7 +108,32 @@ void renderThread(sf::RenderWindow& window) {
     sf::Time prevTime;
 
     glClearColor(0.f, 0.f, 0.f, 1.f);
-    glPointSize(4.f);
+    glPointSize(8.f);
+
+    glGenBuffers(1, &ssbo);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+    
+    std::random_device rd;
+    std::mt19937 e2(rd());
+    std::uniform_real_distribution<float> dist(0.f, 1.f);
+
+    while (windowPos.x <= 0 || windowPos.y <= 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        windowPos = window.getPosition();
+        windowSize = window.getSize();
+    }
+    for (int i = 0; i < num_particles; i++) {
+        Particle p;
+        
+        p.pos = { (float)windowPos.x / windowSize.x + dist(e2), (float)windowPos.y / windowSize.y + dist(e2) };
+        p.vel = { 0.f, 0.f };
+        particles.push_back(p);
+    }
+
+    glBufferData(GL_SHADER_STORAGE_BUFFER, num_particles * sizeof(Particle), particles.data(), GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo);
+
+    sf::Vector2i prevWindowPos = windowPos;
 
     while (window.isOpen()) {
         sf::Time elapsed = clock.getElapsedTime();
@@ -128,16 +142,41 @@ void renderThread(sf::RenderWindow& window) {
         prevTime = elapsed;
         ImGui::SFML::Update(window, sfdt);
 
+        windowPos = window.getPosition();
+        windowSize = window.getSize();
+        vec2 corner{ (float)windowPos.x / windowSize.x, (float)windowPos.y / windowSize.y };
+        vec2 prevCorner{ (float)prevWindowPos.x / windowSize.x, (float)prevWindowPos.y / windowSize.y };
+        vec2 windowVelocity = (corner - prevCorner) / dt;
+        prevWindowPos = windowPos;
+        if (windowVelocity.x != 0 || windowVelocity.y != 0)
+            std::cout << windowVelocity.x << " " << windowVelocity.y << std::endl;
+
         for (Particle& p : particles) {
-            p.vel.y += -9.81f * dt;
+            //p.vel.y += 9.81f * dt;
             p.pos += p.vel * dt;
             
-            if (p.pos.y < -1.f) {
-                p.pos.y = -1.f;
-                p.vel.y *= -0.8f;
+            if (p.pos.x < corner[0]) {
+                p.pos.x = corner[0];
+                p.vel.x = 2 * windowVelocity.x - p.vel.x * 0.7f;
+            }
+            else if (p.pos.x > corner[0] + 1.f) {
+                p.pos.x = corner[0] + 1.f;
+                p.vel.x = 2 * windowVelocity.x - p.vel.x * 0.7f;
+            }
+            if (p.pos.y < corner[1]) {
+                p.pos.y = corner[1];
+                p.vel.y = 2 * windowVelocity.y - p.vel.y * 0.7f;
+            }
+            else if (p.pos.y > corner[1] + 1.f) {
+                p.pos.y = corner[1] + 1.f;
+                p.vel.y = 2 * windowVelocity.y - p.vel.y * 0.7f;
             }
         }
         glBufferData(GL_SHADER_STORAGE_BUFFER, num_particles * sizeof(Particle), particles.data(), GL_DYNAMIC_DRAW);
+
+        glUniform2f(glGetUniformLocation(program, "windowSize"), windowSize.x, windowSize.y);
+        glUniform2f(glGetUniformLocation(program, "windowPos"), windowPos.x, windowPos.y);
+        glUniform2f(glGetUniformLocation(program, "windowVelcoity"), windowVelocity.x, windowVelocity.y);
 
         glClear(GL_COLOR_BUFFER_BIT);
         glDrawArrays(GL_POINTS, 0, num_particles);
@@ -148,7 +187,7 @@ void renderThread(sf::RenderWindow& window) {
 
 int main() {
     try {
-        sf::RenderWindow window{sf::VideoMode({ 800, 600 }), "Hydrobox",
+        sf::RenderWindow window{sf::VideoMode({ 1200, 800 }), "Hydrobox",
             sf::Style::Default, sf::State::Windowed, sf::ContextSettings(24, 8, 4, 4, 6)};
         window.setVerticalSyncEnabled(true);
         auto icon = b::embed<"assets/icon.bmp">();
@@ -175,13 +214,18 @@ int main() {
 
         while (window.isOpen()) {
             while (const auto event = window.pollEvent()) {
-                if (event->is<sf::Event::Closed>()) window.close();
+                if (event->is<sf::Event::Closed>())
+                    window.close();
+                else if (const auto re = event->getIf<sf::Event::Resized>()) {
+                    sf::Vector2f newsize = { static_cast<float>(re->size.x), static_cast<float>(re->size.y) };
+                    window.setView(sf::View(sf::FloatRect({ 0.f, 0.f }, newsize)));
+                }
                 ImGui::SFML::ProcessEvent(window, event.value());
             }
         }
         thread.join();
     } catch (const std::runtime_error& e) {
-        boxer::show(e.what(), "Runtime error");
+        boxer::show(e.what(), "Runtime error", boxer::Style::Error);
         return 1;
     }
     return 0;
