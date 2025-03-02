@@ -36,7 +36,7 @@ struct Particle {
 };
 
 GLuint ssbo;
-int num_particles = 1;
+int num_particles = 20;
 std::vector<Particle> particles;
 
 void GLAPIENTRY glMessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {
@@ -97,18 +97,25 @@ void renderThread(sf::RenderWindow& window) {
     glDeleteShader(vertexShader);
     glDeleteShader(fragShader);
 
+    GLuint computeShader = glCreateShader(GL_COMPUTE_SHADER);
+    embed = b::embed<"shaders/compute.glsl">();
+    content = embed.data();
+    length = embed.length();
+    glShaderSource(computeShader, 1, &content, NULL);
+    glCompileShader(computeShader);
+    check_for_errors(computeShader);
+
+    GLuint computeProgram = glCreateProgram();
+    glAttachShader(computeProgram, computeShader);
+    glLinkProgram(computeProgram);
+    glDeleteShader(computeShader);
+
     glShaderStorageBlockBinding(program, glGetProgramResourceIndex(program, GL_SHADER_STORAGE_BLOCK, "ssbo"), 0);
+    glShaderStorageBlockBinding(computeProgram, glGetProgramResourceIndex(computeProgram, GL_SHADER_STORAGE_BLOCK, "ssbo"), 0);
 
     GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
-
-    sf::Clock clock;
-    clock.start();
-    sf::Time prevTime;
-
-    glClearColor(0.f, 0.f, 0.f, 1.f);
-    glPointSize(8.f);
 
     glGenBuffers(1, &ssbo);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
@@ -133,6 +140,13 @@ void renderThread(sf::RenderWindow& window) {
     glBufferData(GL_SHADER_STORAGE_BUFFER, num_particles * sizeof(Particle), particles.data(), GL_DYNAMIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo);
 
+    sf::Clock clock;
+    clock.start();
+    sf::Time prevTime;
+
+    glClearColor(0.f, 0.f, 0.f, 1.f);
+    glPointSize(10.f);
+
     sf::Vector2i prevWindowPos = windowPos;
 
     while (window.isOpen()) {
@@ -148,35 +162,18 @@ void renderThread(sf::RenderWindow& window) {
         vec2 prevCorner{ (float)prevWindowPos.x / windowSize.x, (float)prevWindowPos.y / windowSize.y };
         vec2 windowVelocity = (corner - prevCorner) / dt;
         prevWindowPos = windowPos;
-        if (windowVelocity.x != 0 || windowVelocity.y != 0)
-            std::cout << windowVelocity.x << " " << windowVelocity.y << std::endl;
 
-        for (Particle& p : particles) {
-            //p.vel.y += 9.81f * dt;
-            p.pos += p.vel * dt;
-            
-            if (p.pos.x < corner[0]) {
-                p.pos.x = corner[0];
-                p.vel.x = 2 * windowVelocity.x - p.vel.x * 0.7f;
-            }
-            else if (p.pos.x > corner[0] + 1.f) {
-                p.pos.x = corner[0] + 1.f;
-                p.vel.x = 2 * windowVelocity.x - p.vel.x * 0.7f;
-            }
-            if (p.pos.y < corner[1]) {
-                p.pos.y = corner[1];
-                p.vel.y = 2 * windowVelocity.y - p.vel.y * 0.7f;
-            }
-            else if (p.pos.y > corner[1] + 1.f) {
-                p.pos.y = corner[1] + 1.f;
-                p.vel.y = 2 * windowVelocity.y - p.vel.y * 0.7f;
-            }
-        }
-        glBufferData(GL_SHADER_STORAGE_BUFFER, num_particles * sizeof(Particle), particles.data(), GL_DYNAMIC_DRAW);
-
+        glUseProgram(computeProgram);
+        glUniform1f(glGetUniformLocation(computeProgram, "dt"), dt);
+        glUniform2f(glGetUniformLocation(computeProgram, "windowVelocity"), windowVelocity.x, windowVelocity.y);
+        glUniform2f(glGetUniformLocation(computeProgram, "corner"), corner.x, corner.y);
+        glDispatchCompute(num_particles, 1, 1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        
+        glUseProgram(program);
         glUniform2f(glGetUniformLocation(program, "windowSize"), windowSize.x, windowSize.y);
         glUniform2f(glGetUniformLocation(program, "windowPos"), windowPos.x, windowPos.y);
-        glUniform2f(glGetUniformLocation(program, "windowVelcoity"), windowVelocity.x, windowVelocity.y);
+        glUniform2f(glGetUniformLocation(program, "windowVelocity"), windowVelocity.x, windowVelocity.y);
 
         glClear(GL_COLOR_BUFFER_BIT);
         glDrawArrays(GL_POINTS, 0, num_particles);
@@ -204,6 +201,8 @@ int main() {
         ImGuiIO& io = ImGui::GetIO(); (void)io;
         auto font = b::embed<"assets/consola.ttf">();
         io.Fonts->Clear();
+        io.IniFilename = NULL;
+        io.LogFilename = NULL;
         ImFont* imfont = io.Fonts->AddFontFromMemoryTTF((void*)font.data(), font.size(), 11.f, nullptr);
         IM_ASSERT(imfont != NULL);
         if (!ImGui::SFML::UpdateFontTexture())

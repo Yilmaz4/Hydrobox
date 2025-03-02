@@ -32,6 +32,7 @@ b_embed(${PROJECT_NAME} assets/icon.bmp)
 
 b_embed(${PROJECT_NAME} shaders/fragment.glsl)
 b_embed(${PROJECT_NAME} shaders/vertex.glsl)
+b_embed(${PROJECT_NAME} shaders/compute.glsl)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     SFML::Graphics OpenGL::GL Boxer ImGui-SFML::ImGui-SFML glm::glm
