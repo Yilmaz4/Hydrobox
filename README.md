@@ -10,7 +10,6 @@ I'm writing these down so I don't forget later on, I'm not yet sure if there are
 
 - Git
 - CMake version >= 3.20
-- Ninja
 - C++ compiler (GCC, Clang, MSVC, etc.)
 
 Clone the repository with `--recurse-submodules`, then go into the directory
@@ -21,7 +20,7 @@ cd Hydrobox
 
 Generate the build files with CMake and build
 ```
-cmake -S . -B build -G Ninja
+cmake -S . -B build
 cmake --build build
 ```
 
