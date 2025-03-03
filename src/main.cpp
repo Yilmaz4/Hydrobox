@@ -144,11 +144,11 @@ void renderThread(sf::RenderWindow& window) {
     }
 
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo_1);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, num_particles * sizeof(Particle), particles.data(), GL_DYNAMIC_DRAW);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, num_particles * sizeof(Particle), particles.data(), GL_DYNAMIC_COPY);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo_1);
     
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo_2);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, num_particles * sizeof(Particle), particles.data(), GL_DYNAMIC_DRAW);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, num_particles * sizeof(Particle), particles.data(), GL_DYNAMIC_COPY);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo_2);
 
     sf::Clock clock;
@@ -156,7 +156,7 @@ void renderThread(sf::RenderWindow& window) {
     sf::Time prevTime;
 
     glClearColor(0.f, 0.f, 0.f, 1.f);
-    glPointSize(10.f);
+    glPointSize(15.f);
 
     sf::Vector2i prevWindowPos = windowPos;
 
@@ -169,6 +169,7 @@ void renderThread(sf::RenderWindow& window) {
 
         windowPos = window.getPosition();
         windowSize = window.getSize();
+        glViewport(0, 0, windowSize.x, windowSize.y);
         vec2 corner{ (float)windowPos.x / screenSize.x, (float)windowPos.y / screenSize.y };
         vec2 prevCorner{ (float)prevWindowPos.x / screenSize.x, (float)prevWindowPos.y / screenSize.y };
         vec2 windowVelocity = (corner - prevCorner) / dt;
