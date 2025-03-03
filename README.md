@@ -10,6 +10,7 @@ I'm writing these down so I don't forget later on, I'm not yet sure if there are
 
 - Git
 - CMake version >= 3.20
+- C++ build system (Make, Ninja, MSBuild, etc.)
 - C++ compiler (GCC, Clang, MSVC, etc.)
 
 Clone the repository with `--recurse-submodules`, then go into the directory
