@@ -30,13 +30,17 @@
 
 using namespace glm;
 
+#pragma pack(push, 1)
 struct Particle {
     glm::vec2 pos;
     glm::vec2 vel;
+    unsigned int grid_x;
+    unsigned int grid_y;
 };
+#pragma pack(pop)
 
-GLuint ssbo;
-int num_particles = 20;
+GLuint ssbo_1, ssbo_2;
+int num_particles = 10;
 std::vector<Particle> particles;
 
 void GLAPIENTRY glMessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {
@@ -111,34 +115,41 @@ void renderThread(sf::RenderWindow& window) {
     glDeleteShader(computeShader);
 
     glShaderStorageBlockBinding(program, glGetProgramResourceIndex(program, GL_SHADER_STORAGE_BLOCK, "ssbo"), 0);
-    glShaderStorageBlockBinding(computeProgram, glGetProgramResourceIndex(computeProgram, GL_SHADER_STORAGE_BLOCK, "ssbo"), 0);
+    glShaderStorageBlockBinding(computeProgram, glGetProgramResourceIndex(computeProgram, GL_SHADER_STORAGE_BLOCK, "ssbo_in"), 0);
+    //glShaderStorageBlockBinding(computeProgram, glGetProgramResourceIndex(computeProgram, GL_SHADER_STORAGE_BLOCK, "ssbo_out"), 1);
 
     GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
 
-    glGenBuffers(1, &ssbo);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-    
-    std::random_device rd;
-    std::mt19937 e2(rd());
-    std::uniform_real_distribution<float> dist(0.f, 1.f);
+    glGenBuffers(1, &ssbo_1);
+    glGenBuffers(1, &ssbo_2);
 
     while (windowPos.x <= 0 || windowPos.y <= 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         windowPos = window.getPosition();
         windowSize = window.getSize();
     }
+    std::random_device rd;
+    std::mt19937 e2(rd());
+    std::uniform_real_distribution<float> distx((float)windowPos.x / screenSize.x, (float)(windowPos.x + windowSize.x) / screenSize.x);
+    std::uniform_real_distribution<float> disty((float)windowPos.y / screenSize.y, (float)(windowPos.y + windowSize.y) / screenSize.y);
+
     for (int i = 0; i < num_particles; i++) {
         Particle p;
-        
-        p.pos = { (float)windowPos.x / windowSize.x + dist(e2), (float)windowPos.y / windowSize.y + dist(e2) };
+        p.pos = { distx(e2), disty(e2) };
+        std::cout << to_string(p.pos) << std::endl;
         p.vel = { 0.f, 0.f };
         particles.push_back(p);
     }
 
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo_1);
     glBufferData(GL_SHADER_STORAGE_BUFFER, num_particles * sizeof(Particle), particles.data(), GL_DYNAMIC_DRAW);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo_1);
+    
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo_2);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, num_particles * sizeof(Particle), particles.data(), GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo_2);
 
     sf::Clock clock;
     clock.start();
@@ -158,19 +169,22 @@ void renderThread(sf::RenderWindow& window) {
 
         windowPos = window.getPosition();
         windowSize = window.getSize();
-        vec2 corner{ (float)windowPos.x / windowSize.x, (float)windowPos.y / windowSize.y };
-        vec2 prevCorner{ (float)prevWindowPos.x / windowSize.x, (float)prevWindowPos.y / windowSize.y };
+        vec2 corner{ (float)windowPos.x / screenSize.x, (float)windowPos.y / screenSize.y };
+        vec2 prevCorner{ (float)prevWindowPos.x / screenSize.x, (float)prevWindowPos.y / screenSize.y };
         vec2 windowVelocity = (corner - prevCorner) / dt;
         prevWindowPos = windowPos;
 
         glUseProgram(computeProgram);
         glUniform1f(glGetUniformLocation(computeProgram, "dt"), dt);
+        glUniform2f(glGetUniformLocation(computeProgram, "screenSize"), screenSize.x, screenSize.y);
+        glUniform2f(glGetUniformLocation(computeProgram, "windowSize"), windowSize.x, windowSize.y);
         glUniform2f(glGetUniformLocation(computeProgram, "windowVelocity"), windowVelocity.x, windowVelocity.y);
         glUniform2f(glGetUniformLocation(computeProgram, "corner"), corner.x, corner.y);
         glDispatchCompute(num_particles, 1, 1);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
         
         glUseProgram(program);
+        glUniform2f(glGetUniformLocation(program, "screenSize"), screenSize.x, screenSize.y);
         glUniform2f(glGetUniformLocation(program, "windowSize"), windowSize.x, windowSize.y);
         glUniform2f(glGetUniformLocation(program, "windowPos"), windowPos.x, windowPos.y);
         glUniform2f(glGetUniformLocation(program, "windowVelocity"), windowVelocity.x, windowVelocity.y);

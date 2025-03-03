@@ -3,6 +3,8 @@
 struct Particle {
     vec2 pos;
     vec2 vel;
+    uint grid_x;
+    uint grid_y;
 };
 
 layout(std430, binding = 0) volatile buffer ssbo {
